@@ -24,9 +24,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFileIndex = 0;
     let parsedContents = new Map(); // Store parsed contents for each file
 
+    // Constants for API
+    const API_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000;
+
+    // Utility Functions
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     // Handle file selection
-    resumeInput.addEventListener('change', (event) => {
-        handleFileSelection(Array.from(event.target.files));
+    resumeInput.addEventListener('change', async (event) => {
+        try {
+            await handleFileSelection(Array.from(event.target.files));
+        } catch (error) {
+            alert(`Error uploading files: ${error.message}`);
+        }
     });
 
     // Handle folder selection
@@ -252,135 +264,77 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function displayFileResults(fileName, analysis) {
         const resultDiv = document.createElement('div');
-        resultDiv.className = 'p-4 bg-white rounded-lg shadow';
+        resultDiv.className = 'p-6 bg-white rounded-lg shadow-md transform transition-all duration-300 hover:shadow-lg';
+        resultDiv.style.opacity = '0';
         
         resultDiv.innerHTML = `
-            <div class="mb-4 border-b pb-2">
-                <h3 class="text-lg font-semibold">${fileName}</h3>
-                <div class="flex items-center justify-between mt-2">
-                    <span class="text-gray-600">Match Score:</span>
-                    <span class="text-xl font-bold text-blue-600">${analysis.matchScore}%</span>
+            <div class="mb-4 border-b pb-4">
+                <h3 class="text-xl font-semibold text-gray-800">${fileName}</h3>
+                <div class="flex items-center justify-between mt-3">
+                    <span class="text-gray-600 font-medium">Match Score:</span>
+                    <div class="flex items-center">
+                        <div class="w-24 h-2 bg-gray-200 rounded-full mr-3">
+                            <div class="h-full bg-blue-600 rounded-full" style="width: ${analysis.matchScore}%"></div>
+                        </div>
+                        <span class="text-xl font-bold text-blue-600">${analysis.matchScore}%</span>
+                    </div>
                 </div>
             </div>
             
             <div class="space-y-4">
                 <div>
-                    <h4 class="font-semibold mb-2">Suggestions for Improvement:</h4>
-                    ${analysis.suggestions.map(suggestion => `
-                        <div class="p-2 bg-blue-50 rounded mb-2">
-                            <p class="text-gray-700">• ${suggestion}</p>
+                    <h4 class="font-semibold text-gray-700 mb-2">Suggestions for Improvement:</h4>
+                    <ul class="space-y-2">
+                        ${analysis.suggestions.map(suggestion => `
+                            <li class="flex items-start">
+                                <span class="text-blue-500 mr-2">•</span>
+                                <span class="text-gray-700">${suggestion}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="font-semibold text-gray-700 mb-2">Matching Requirements:</h4>
+                        <div class="p-3 bg-green-50 rounded-lg">
+                            ${analysis.matchingSkills.length > 0 
+                                ? analysis.matchingSkills.map(skill => `
+                                    <span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded m-1">
+                                        ${skill}
+                                    </span>
+                                `).join('')
+                                : '<span class="text-gray-500">None found</span>'
+                            }
                         </div>
-                    `).join('')}
-                </div>
-                
-                <div>
-                    <h4 class="font-semibold mb-2">Matching Requirements:</h4>
-                    <div class="p-2 bg-green-50 rounded">
-                        <p class="text-gray-700">${analysis.matchingSkills.join(', ') || 'None'}</p>
                     </div>
-                </div>
-                
-                <div>
-                    <h4 class="font-semibold mb-2">Missing Requirements:</h4>
-                    <div class="p-2 bg-yellow-50 rounded">
-                        <p class="text-gray-700">${analysis.missingSkills.join(', ') || 'None'}</p>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-700 mb-2">Missing Requirements:</h4>
+                        <div class="p-3 bg-yellow-50 rounded-lg">
+                            ${analysis.missingSkills.length > 0 
+                                ? analysis.missingSkills.map(skill => `
+                                    <span class="inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded m-1">
+                                        ${skill}
+                                    </span>
+                                `).join('')
+                                : '<span class="text-gray-500">None missing</span>'
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
         `;
         
         resultsContainer.appendChild(resultDiv);
+        
+        // Animate the result card
+        requestAnimationFrame(() => {
+            resultDiv.style.opacity = '1';
+        });
     }
 
     exportPDFBtn.addEventListener('click', async () => {
-        // Create a new div for the PDF content
-        const pdfContent = document.createElement('div');
-        pdfContent.className = 'p-8 bg-white';
-
-        // Add header with timestamp
-        const header = document.createElement('div');
-        header.innerHTML = `
-            <h1 class="text-2xl font-bold mb-4">Resume Analysis Report</h1>
-            <p class="text-gray-600 mb-6">Generated on: ${new Date().toLocaleString()}</p>
-        `;
-        pdfContent.appendChild(header);
-
-        // Add requirements section
-        const requirementsSection = document.createElement('div');
-        requirementsSection.className = 'mb-8';
-        const requirements = [];
-        const requirementInputs = requirementsForm.querySelectorAll('div > input');
-        for (let i = 0; i < requirementInputs.length; i += 2) {
-            const label = requirementInputs[i].value.trim();
-            const value = requirementInputs[i + 1].value.trim();
-            if (label && value) {
-                requirements.push({ label, value });
-            }
-        }
-
-        requirementsSection.innerHTML = `
-            <h2 class="text-xl font-bold mb-2">Job Requirements</h2>
-            <div class="space-y-1">
-                ${requirements.map(req => `
-                    <div class="flex">
-                        <span class="font-semibold min-w-[120px]">${req.label}:</span>
-                        <span>${req.value}</span>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        pdfContent.appendChild(requirementsSection);
-
-        // Add results for each resume
-        const resultsSection = document.createElement('div');
-        resultsSection.className = 'space-y-8';
-        resultsSection.innerHTML = `
-            <h2 class="text-xl font-bold mb-4">Analysis Results</h2>
-            ${Array.from(resultsContainer.children).map(resultDiv => `
-                <div class="border-t pt-4">
-                    <h3 class="text-lg font-bold mb-2">${resultDiv.querySelector('h3').textContent}</h3>
-                    
-                    <div class="mb-4">
-                        <span class="font-semibold">Match Score:</span>
-                        <span class="text-lg text-blue-600 font-bold">
-                            ${resultDiv.querySelector('.text-xl.font-bold').textContent}
-                        </span>
-                    </div>
-
-                    <div class="mb-4">
-                        <h4 class="font-semibold mb-2">Suggestions for Improvement:</h4>
-                        ${Array.from(resultDiv.querySelectorAll('.bg-blue-50 p')).map(p => `
-                            <div class="mb-1">${p.textContent}</div>
-                        `).join('')}
-                    </div>
-
-                    <div class="mb-4">
-                        <h4 class="font-semibold mb-2">Matching Requirements:</h4>
-                        <div class="bg-green-50 p-2 rounded">
-                            ${resultDiv.querySelector('.bg-green-50 p').textContent}
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <h4 class="font-semibold mb-2">Missing Requirements:</h4>
-                        <div class="bg-yellow-50 p-2 rounded">
-                            ${resultDiv.querySelector('.bg-yellow-50 p').textContent}
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        `;
-        pdfContent.appendChild(resultsSection);
-
-        // Configure PDF options
-        const opt = {
-            margin: 1,
-            filename: 'resume-analysis-report.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
-
         // Show loading state
         exportPDFBtn.disabled = true;
         exportPDFBtn.innerHTML = `
@@ -392,8 +346,125 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         try {
+            // Create a temporary container and append it to the document
+            const pdfContent = document.createElement('div');
+            pdfContent.className = 'p-8 bg-white fixed top-0 left-0 right-0 bottom-0 z-[-1]';
+            document.body.appendChild(pdfContent);
+
+            // Add header
+            pdfContent.innerHTML = `
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold mb-2">Resume Analysis Report</h1>
+                    <p class="text-gray-600">Generated on: ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+
+            // Add requirements section
+            const requirements = [];
+            const requirementInputs = requirementsForm.querySelectorAll('div > input');
+            for (let i = 0; i < requirementInputs.length; i += 2) {
+                const label = requirementInputs[i].value.trim();
+                const value = requirementInputs[i + 1].value.trim();
+                if (label && value) {
+                    requirements.push({ label, value });
+                }
+            }
+
+            if (requirements.length > 0) {
+                pdfContent.innerHTML += `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold mb-4">Job Requirements</h2>
+                        <div class="space-y-2">
+                            ${requirements.map(req => `
+                                <div class="flex">
+                                    <span class="font-semibold min-w-[150px]">${req.label}:</span>
+                                    <span>${req.value}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Add results section
+            const results = Array.from(resultsContainer.children);
+            if (results.length > 0) {
+                pdfContent.innerHTML += `
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4">Analysis Results</h2>
+                        <div class="space-y-8">
+                            ${results.map(result => {
+                                const fileName = result.querySelector('h3').textContent;
+                                const matchScore = result.querySelector('.text-xl.font-bold').textContent;
+                                const suggestions = Array.from(result.querySelectorAll('ul li span:last-child'))
+                                    .map(span => span.textContent);
+                                const matchingSkills = Array.from(result.querySelectorAll('.bg-green-50 .bg-green-100'))
+                                    .map(span => span.textContent.trim());
+                                const missingSkills = Array.from(result.querySelectorAll('.bg-yellow-50 .bg-yellow-100'))
+                                    .map(span => span.textContent.trim());
+
+                                return `
+                                    <div class="border-t pt-4">
+                                        <h3 class="text-xl font-bold mb-2">${fileName}</h3>
+                                        <div class="mb-4">
+                                            <span class="font-semibold">Match Score:</span>
+                                            <span class="text-blue-600 font-bold ml-2">${matchScore}</span>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <h4 class="font-semibold mb-2">Suggestions for Improvement:</h4>
+                                            <ul class="list-disc pl-5 space-y-1">
+                                                ${suggestions.map(s => `<li>${s}</li>`).join('')}
+                                            </ul>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <h4 class="font-semibold mb-2">Matching Requirements:</h4>
+                                                <div class="p-3 bg-green-50 rounded">
+                                                    ${matchingSkills.length ? matchingSkills.join(', ') : 'None found'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 class="font-semibold mb-2">Missing Requirements:</h4>
+                                                <div class="p-3 bg-yellow-50 rounded">
+                                                    ${missingSkills.length ? missingSkills.join(', ') : 'None missing'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Configure PDF options
+            const opt = {
+                margin: 10,
+                filename: 'resume-analysis-report.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: pdfContent.scrollWidth
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait'
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
             // Generate PDF
             await html2pdf().set(opt).from(pdfContent).save();
+
+            // Clean up - remove the temporary element
+            document.body.removeChild(pdfContent);
+
         } catch (error) {
             console.error('Error generating PDF:', error);
             alert('Error generating PDF. Please try again.');
@@ -411,55 +482,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF parsing function
     async function parsePDFFile(file) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let fullText = '';
-                
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map(item => item.str).join(' ');
-                    fullText += pageText + '\n\n';
-                }
-                
-                resolve(fullText.trim());
-            } catch (error) {
-                reject(error);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            
+            const totalPages = pdf.numPages;
+            for (let i = 1; i <= totalPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items
+                    .map(item => item.str)
+                    .join(' ')
+                    .replace(/\s+/g, ' '); // Normalize whitespace
+                fullText += pageText + '\n\n';
             }
-        });
+            
+            return fullText.trim();
+        } catch (error) {
+            console.error('Error parsing PDF:', error);
+            throw new Error(`Failed to parse PDF: ${file.name}`);
+        }
     }
 
     // Mistral AI analysis function
-    async function analyzeResume(resumeText, requirements) {
-        // Format requirements for the prompt
-        const formattedRequirements = requirements
-            .map(req => `${req.label}: ${req.value}`)
-            .join('\n');
-
+    async function analyzeResume(resumeText, requirements, retries = MAX_RETRIES) {
         const prompt = `
-            Analyze this resume against the following job requirements. Return a JSON object with:
-            {
-                "matchScore": <number 0-100>,
-                "suggestions": [<string array of specific improvements>],
-                "matchingSkills": [<string array of matching requirements>],
-                "missingSkills": [<string array of missing requirements>]
-            }
-
-            Resume:
+            Act as an expert resume analyzer. Analyze this resume against the following job requirements.
+            Provide a detailed analysis including:
+            1. An overall match score (0-100)
+            2. Specific matching skills/requirements found
+            3. Missing requirements
+            4. Detailed suggestions for improvement
+            
+            Resume Content:
             ${resumeText}
 
             Job Requirements:
-            ${formattedRequirements}
+            ${requirements.map(req => `${req.label}: ${req.value}`).join('\n')}
+
+            Provide the analysis in the following JSON format:
+            {
+                "matchScore": number,
+                "matchingSkills": string[],
+                "missingSkills": string[],
+                "suggestions": string[]
+            }
         `;
 
         try {
-            const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            const response = await fetch(API_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                     'Authorization': `Bearer ${config.MISTRAL_API_KEY}`
                 },
                 body: JSON.stringify({
@@ -468,21 +543,53 @@ document.addEventListener('DOMContentLoaded', () => {
                         role: 'user',
                         content: prompt
                     }],
+                    temperature: 0.7,
                     response_format: { type: 'json_object' }
                 })
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('API Error:', errorData);
-                throw new Error(errorData.message || 'API request failed');
+                throw new Error(`API request failed with status ${response.status}`);
             }
 
             const data = await response.json();
             return JSON.parse(data.choices[0].message.content);
         } catch (error) {
-            console.error('Error calling Mistral AI:', error);
+            if (retries > 0) {
+                await sleep(RETRY_DELAY);
+                return analyzeResume(resumeText, requirements, retries - 1);
+            }
             throw error;
         }
     }
+
+    // Add drag and drop support
+    const uploadZone = document.querySelector('.upload-zone');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    uploadZone.addEventListener('dragenter', () => {
+        uploadZone.classList.add('border-blue-500');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('border-blue-500');
+    });
+
+    uploadZone.addEventListener('drop', async (e) => {
+        uploadZone.classList.remove('border-blue-500');
+        const files = Array.from(e.dataTransfer.files).filter(file => file.name.toLowerCase().endsWith('.pdf'));
+        if (files.length > 0) {
+            try {
+                await handleFileSelection(files);
+            } catch (error) {
+                alert(`Error uploading files: ${error.message}`);
+            }
+        }
+    });
 });
