@@ -8,98 +8,132 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+        .upload-zone {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 2px dashed #a1c4fd;
+            transition: all 0.3s ease;
+        }
+        .upload-zone:hover {
+            border-color: #4a90e2;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">AI Resume Checker</h1>
-        
-        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-            <div class="mb-6">
-                <div class="flex items-center space-x-4 mb-4">
-                    <div class="flex-1">
-                        <label for="resume" class="block text-gray-700 text-sm font-bold mb-2">Upload Resumes (PDF)</label>
-                        <input type="file" id="resume" accept=".pdf" multiple
-                            class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="folderUpload" class="block text-gray-700 text-sm font-bold mb-2">Upload Folder</label>
-                        <input type="file" id="folderUpload" webkitdirectory directory
-                            class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
+<body class="bg-gray-50 min-h-screen">
+    <div class="gradient-bg py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">
+                AI Resume Checker
+            </h1>
+            <p class="text-lg text-gray-700 max-w-2xl mx-auto">
+                Upload your resumes and get instant AI-powered analysis against job requirements
+            </p>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 -mt-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+            <div class="mb-8">
+                <div class="upload-zone p-8 rounded-xl text-center">
+                    <div class="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                        <div class="w-full sm:w-1/2">
+                            <label for="resume" class="block text-gray-700 font-medium mb-3">Upload Resumes (PDF)</label>
+                            <input type="file" id="resume" accept=".pdf" multiple
+                                class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        </div>
+                        <div class="w-full sm:w-1/2">
+                            <label for="folderUpload" class="block text-gray-700 font-medium mb-3">Upload Folder</label>
+                            <input type="file" id="folderUpload" webkitdirectory directory
+                                class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        </div>
                     </div>
                 </div>
 
-                <!-- File List -->
-                <div id="fileList" class="mt-4 hidden">
-                    <h3 class="text-lg font-semibold mb-2">Uploaded Files</h3>
-                    <div id="fileListContent" class="max-h-60 overflow-y-auto space-y-2">
+                <div id="fileList" class="mt-6 hidden">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800">Uploaded Files</h3>
+                    <div id="fileListContent" class="max-h-60 overflow-y-auto space-y-2 bg-gray-50 rounded-lg p-4">
                         <!-- Files will be listed here -->
                     </div>
-                    <div class="mt-2 flex justify-between items-center">
+                    <div class="mt-3 flex justify-between items-center">
                         <span class="text-sm text-gray-600">
-                            Total files: <span id="fileCount">0</span>
+                            Total files: <span id="fileCount" class="font-semibold">0</span>
                         </span>
-                        <button id="clearFiles" class="text-red-500 text-sm hover:text-red-700">
+                        <button id="clearFiles" class="text-red-500 text-sm hover:text-red-700 font-medium transition duration-200">
                             Clear All Files
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Parsed Content for Selected File -->
-            <div id="parsedContent" class="mb-6 hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-gray-700 text-sm font-bold">Current File: <span id="currentFileName"></span></label>
-                    <div class="flex space-x-2">
-                        <button id="prevFile" class="text-blue-500 text-sm hover:text-blue-700">Previous</button>
-                        <button id="nextFile" class="text-blue-500 text-sm hover:text-blue-700">Next</button>
+            <div id="parsedContent" class="mb-8 hidden">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="flex justify-between items-center p-4 border-b">
+                        <label class="text-gray-700 font-medium">Current File: <span id="currentFileName" class="text-blue-600"></span></label>
+                        <div class="flex space-x-3">
+                            <button id="prevFile" class="text-blue-600 hover:text-blue-800 font-medium transition duration-200">Previous</button>
+                            <button id="nextFile" class="text-blue-600 hover:text-blue-800 font-medium transition duration-200">Next</button>
+                        </div>
                     </div>
-                </div>
-                <div class="w-full p-4 bg-gray-50 rounded-lg max-h-60 overflow-y-auto">
-                    <pre id="parsedText" class="whitespace-pre-wrap text-sm"></pre>
-                </div>
-                <div class="mt-2">
-                    <button id="editContent" class="text-blue-500 text-sm hover:text-blue-700">Edit parsed content</button>
+                    <div class="p-4">
+                        <pre id="parsedText" class="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 rounded-lg p-4"></pre>
+                        <div class="mt-3">
+                            <button id="editContent" class="text-blue-600 hover:text-blue-800 font-medium transition duration-200">
+                                Edit parsed content
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Job Requirements</label>
-                <div id="requirementsForm" class="space-y-3">
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">Job Requirements</h3>
+                <div id="requirementsForm" class="space-y-4 bg-gray-50 rounded-lg p-6">
                     <!-- Requirements will be added here -->
                 </div>
-                <div class="mt-3">
+                <div class="mt-4">
                     <button id="addRequirement" 
-                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-200">
-                        + Add Requirement
+                        class="bg-green-500 text-white px-5 py-2.5 rounded-lg hover:bg-green-600 transition duration-200 font-medium flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Requirement
                     </button>
                 </div>
             </div>
 
             <button id="analyzeBtn" 
-                class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition duration-200">
+                class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-200 font-medium text-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                 Analyze Resumes
             </button>
 
-            <!-- Results Section -->
-            <div id="results" class="mt-6 hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">Analysis Results</h2>
+            <div id="results" class="mt-8 hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Analysis Results</h2>
                     <button id="exportPDF" 
-                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-200 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        class="bg-green-500 text-white px-5 py-2.5 rounded-lg hover:bg-green-600 transition duration-200 font-medium flex items-center shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Export to PDF
                     </button>
                 </div>
                 <div id="resultsContainer" class="space-y-6">
-                    <!-- Results for each file will be added here -->
+                    <!-- Results will be added here -->
                 </div>
             </div>
 
-            <div id="loading" class="hidden mt-6 text-center">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p class="mt-2 text-gray-600">Analyzing resumes...</p>
+            <div id="loading" class="hidden mt-8 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600 text-lg">Analyzing resumes...</p>
             </div>
         </div>
     </div>
