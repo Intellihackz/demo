@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Checker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">AI Resume Checker</h1>
+        
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <div class="mb-6">
+                <div class="flex items-center space-x-4 mb-4">
+                    <div class="flex-1">
+                        <label for="resume" class="block text-gray-700 text-sm font-bold mb-2">Upload Resumes (PDF)</label>
+                        <input type="file" id="resume" accept=".pdf" multiple
+                            class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="folderUpload" class="block text-gray-700 text-sm font-bold mb-2">Upload Folder</label>
+                        <input type="file" id="folderUpload" webkitdirectory directory
+                            class="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- File List -->
+                <div id="fileList" class="mt-4 hidden">
+                    <h3 class="text-lg font-semibold mb-2">Uploaded Files</h3>
+                    <div id="fileListContent" class="max-h-60 overflow-y-auto space-y-2">
+                        <!-- Files will be listed here -->
+                    </div>
+                    <div class="mt-2 flex justify-between items-center">
+                        <span class="text-sm text-gray-600">
+                            Total files: <span id="fileCount">0</span>
+                        </span>
+                        <button id="clearFiles" class="text-red-500 text-sm hover:text-red-700">
+                            Clear All Files
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parsed Content for Selected File -->
+            <div id="parsedContent" class="mb-6 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-gray-700 text-sm font-bold">Current File: <span id="currentFileName"></span></label>
+                    <div class="flex space-x-2">
+                        <button id="prevFile" class="text-blue-500 text-sm hover:text-blue-700">Previous</button>
+                        <button id="nextFile" class="text-blue-500 text-sm hover:text-blue-700">Next</button>
+                    </div>
+                </div>
+                <div class="w-full p-4 bg-gray-50 rounded-lg max-h-60 overflow-y-auto">
+                    <pre id="parsedText" class="whitespace-pre-wrap text-sm"></pre>
+                </div>
+                <div class="mt-2">
+                    <button id="editContent" class="text-blue-500 text-sm hover:text-blue-700">Edit parsed content</button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Job Requirements</label>
+                <div id="requirementsForm" class="space-y-3">
+                    <!-- Requirements will be added here -->
+                </div>
+                <div class="mt-3">
+                    <button id="addRequirement" 
+                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-200">
+                        + Add Requirement
+                    </button>
+                </div>
+            </div>
+
+            <button id="analyzeBtn" 
+                class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition duration-200">
+                Analyze Resumes
+            </button>
+
+            <!-- Results Section -->
+            <div id="results" class="mt-6 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Analysis Results</h2>
+                    <button id="exportPDF" 
+                        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-200 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export to PDF
+                    </button>
+                </div>
+                <div id="resultsContainer" class="space-y-6">
+                    <!-- Results for each file will be added here -->
+                </div>
+            </div>
+
+            <div id="loading" class="hidden mt-6 text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Analyzing resumes...</p>
+            </div>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
